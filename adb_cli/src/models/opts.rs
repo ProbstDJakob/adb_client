@@ -1,4 +1,4 @@
-use std::net::SocketAddrV4;
+use std::net::{SocketAddr, SocketAddrV4};
 
 use clap::{Parser, Subcommand};
 
@@ -32,7 +32,7 @@ pub enum MainCommand {
 #[derive(Debug, Parser)]
 pub struct ServerCommand<T: Subcommand> {
     #[clap(short = 'a', long = "address", default_value = "127.0.0.1:5037")]
-    pub address: SocketAddrV4,
+    pub address: SocketAddr,
     /// Serial id of a specific device. Every request will be sent to this device.
     #[clap(short = 's', long = "serial")]
     pub serial: Option<String>,

@@ -1,23 +1,35 @@
-use std::io::Write;
-use std::path::Path;
-use std::{io::Read, net::SocketAddr};
-
 use super::ADBTransportMessage;
 use super::adb_message_device::ADBMessageDevice;
 use super::models::MessageCommand;
-use crate::{ADBDeviceExt, ADBMessageTransport, ADBTransport, Result, TcpTransport};
+use crate::{ADBDeviceExt, ADBMessageTransport, Connection, Result, TcpTransport};
+use rustls_pki_types::ServerName;
+use std::io::Write;
+use std::net::TcpStream;
+use std::path::Path;
+use std::{io::Read, net::SocketAddr};
 
 /// Represent a device reached and available over USB.
 #[derive(Debug)]
-pub struct ADBTcpDevice {
-    inner: ADBMessageDevice<TcpTransport>,
+pub struct ADBTcpDevice<C: Connection + Send + 'static> {
+    inner: ADBMessageDevice<TcpTransport<C>>,
 }
 
-impl ADBTcpDevice {
+impl ADBTcpDevice<TcpStream> {
     /// Instantiate a new [`ADBTcpDevice`]
     pub fn new(address: SocketAddr) -> Result<Self> {
+        Self::new_from_tcp_transport(TcpTransport::connect(address)?)
+    }
+}
+
+impl<C: Connection + Send + 'static> ADBTcpDevice<C> {
+    /// Instantiate a new [`ADBTcpDevice`]
+    pub fn new_from_connection(server_name: ServerName, connection: C) -> Result<Self> {
+        Self::new_from_tcp_transport(TcpTransport::new(server_name, connection)?)
+    }
+
+    fn new_from_tcp_transport(tcp_transport: TcpTransport<C>) -> Result<Self> {
         let mut device = Self {
-            inner: ADBMessageDevice::new(TcpTransport::new(address)?),
+            inner: ADBMessageDevice::new(tcp_transport),
         };
 
         device.connect()?;
@@ -26,9 +38,7 @@ impl ADBTcpDevice {
     }
 
     /// Send initial connect
-    pub fn connect(&mut self) -> Result<()> {
-        self.get_transport_mut().connect()?;
-
+    fn connect(&mut self) -> Result<()> {
         let message = ADBTransportMessage::new(
             MessageCommand::Cnxn,
             0x01000000,
@@ -63,12 +73,12 @@ impl ADBTcpDevice {
     }
 
     #[inline]
-    fn get_transport_mut(&mut self) -> &mut TcpTransport {
-        self.inner.get_transport_mut()
+    fn get_transport_mut(&mut self) -> &mut TcpTransport<C> {
+        self.inner.get_transport()
     }
 }
 
-impl ADBDeviceExt for ADBTcpDevice {
+impl<C: Connection + Send + 'static> ADBDeviceExt for ADBTcpDevice<C> {
     #[inline]
     fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
         self.inner.shell_command(command, output)
@@ -115,7 +125,7 @@ impl ADBDeviceExt for ADBTcpDevice {
     }
 }
 
-impl Drop for ADBTcpDevice {
+impl<C: Connection + Send + 'static> Drop for ADBTcpDevice<C> {
     fn drop(&mut self) {
         // Best effort here
         let _ = self.get_transport_mut().disconnect();

@@ -49,8 +49,8 @@ fn main() -> Result<()> {
             }
 
             let device = match server_command.serial {
-                Some(serial) => ADBServerDevice::new(serial, Some(server_command.address)),
-                None => ADBServerDevice::autodetect(Some(server_command.address)),
+                Some(serial) => ADBServerDevice::connect(serial, Some(server_command.address))?,
+                None => ADBServerDevice::connect_autodetect(Some(server_command.address))?,
             };
 
             match server_command.command {

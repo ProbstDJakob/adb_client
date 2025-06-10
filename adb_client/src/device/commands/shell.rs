@@ -7,7 +7,7 @@ use crate::{
     device::{ADBMessageDevice, ADBTransportMessage, MessageCommand},
 };
 
-impl<T: ADBMessageTransport> ADBMessageDevice<T> {
+impl<T: ADBMessageTransport + Send + Clone + 'static> ADBMessageDevice<T> {
     /// Runs 'command' in a shell on the device, and write its output and error streams into output.
     pub(crate) fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
         let response = self.open_session(format!("shell:{}\0", command.join(" "),).as_bytes())?;
@@ -20,7 +20,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
         }
 
         loop {
-            let response = self.get_transport_mut().read_message()?;
+            let response = self.get_transport().read_message()?;
             if response.header().command() != MessageCommand::Write {
                 break;
             }
@@ -66,8 +66,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
             }
         });
 
-        let transport = self.get_transport().clone();
-        let mut shell_writer = ShellMessageWriter::new(transport, local_id, remote_id);
+        let mut shell_writer = ShellMessageWriter::new(self.get_transport(), local_id, remote_id);
 
         // Read from given reader (that could be stdin e.g), and write content to device adbd
         if let Err(e) = std::io::copy(&mut reader, &mut shell_writer) {

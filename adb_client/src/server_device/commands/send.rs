@@ -59,7 +59,7 @@ impl ADBServerDevice {
         // Append the permission flags to the filename
         let to = to.as_ref().to_string() + ",0777";
 
-        let mut raw_connection = self.transport.get_raw_connection()?;
+        let mut raw_connection = self.transport.get_raw_connection();
 
         // The name of the command is already sent by get_transport()?.send_sync_request
         let to_as_bytes = to.as_bytes();
@@ -103,7 +103,7 @@ impl ADBServerDevice {
                         .map_err(|_| RustADBError::ConversionError)?
                 ];
                 if length > 0 {
-                    self.transport.get_raw_connection()?.read_exact(&mut body)?;
+                    self.transport.get_raw_connection().read_exact(&mut body)?;
                 }
 
                 Err(RustADBError::ADBRequestFailed(String::from_utf8(body)?))

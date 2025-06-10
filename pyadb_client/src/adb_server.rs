@@ -1,4 +1,4 @@
-use std::net::SocketAddrV4;
+use std::net::SocketAddr;
 
 use adb_client::ADBServer;
 use anyhow::Result;
@@ -18,7 +18,7 @@ impl PyADBServer {
     #[new]
     /// Instantiate a new PyADBServer instance
     pub fn new(address: String) -> PyResult<Self> {
-        let address = address.parse::<SocketAddrV4>()?;
+        let address = address.parse::<SocketAddr>()?;
         Ok(ADBServer::new(address).into())
     }
 

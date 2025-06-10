@@ -2,8 +2,8 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
     sync::LazyLock,
 };
-
-use crate::{ADBServerDevice, ADBTransport, Result, RustADBError, TCPEmulatorTransport};
+use std::net::{IpAddr, SocketAddr};
+use crate::{ADBServerDevice, Result, RustADBError, TCPEmulatorTransport};
 use regex::Regex;
 
 static EMULATOR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -21,10 +21,10 @@ pub struct ADBEmulatorDevice {
 
 impl ADBEmulatorDevice {
     /// Instantiates a new [ADBEmulatorDevice]
-    pub fn new(identifier: String, ip_address: Option<Ipv4Addr>) -> Result<Self> {
+    pub fn connect(identifier: String, ip_address: Option<IpAddr>) -> Result<Self> {
         let ip_address = match ip_address {
             Some(ip_address) => ip_address,
-            None => Ipv4Addr::new(127, 0, 0, 1),
+            None => Ipv4Addr::new(127, 0, 0, 1).into(),
         };
 
         let groups = EMULATOR_REGEX
@@ -40,9 +40,9 @@ impl ADBEmulatorDevice {
             .as_str()
             .parse::<u16>()?;
 
-        let socket_addr = SocketAddrV4::new(ip_address, port);
+        let socket_addr = SocketAddr::new(ip_address, port);
 
-        let transport = TCPEmulatorTransport::new(socket_addr);
+        let transport = TCPEmulatorTransport::connect(socket_addr)?;
         Ok(Self {
             identifier,
             transport,
@@ -52,13 +52,6 @@ impl ADBEmulatorDevice {
     pub(crate) fn get_transport_mut(&mut self) -> &mut TCPEmulatorTransport {
         &mut self.transport
     }
-
-    /// Connect to underlying transport
-    pub(crate) fn connect(&mut self) -> Result<&mut TCPEmulatorTransport> {
-        self.transport.connect()?;
-
-        Ok(self.get_transport_mut())
-    }
 }
 
 impl TryFrom<ADBServerDevice> for ADBEmulatorDevice {
@@ -66,9 +59,9 @@ impl TryFrom<ADBServerDevice> for ADBEmulatorDevice {
 
     fn try_from(value: ADBServerDevice) -> std::result::Result<Self, Self::Error> {
         match &value.identifier {
-            Some(device_identifier) => ADBEmulatorDevice::new(
+            Some(device_identifier) => ADBEmulatorDevice::connect(
                 device_identifier.clone(),
-                Some(*value.transport.get_socketaddr().ip()),
+                Some(value.transport.get_socketaddr().ip()),
             ),
             None => Err(RustADBError::DeviceNotFound(
                 "cannot connect to an emulator device without knowing its identifier".to_string(),

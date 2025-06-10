@@ -89,7 +89,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
             v => return Err(RustADBError::UnimplementedFramebufferImageVersion(v)),
         };
 
-        self.get_transport_mut()
+        self.get_transport()
             .read_message()
             .and_then(|message| message.assert_command(MessageCommand::Clse))?;
 

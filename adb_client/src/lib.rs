@@ -25,3 +25,5 @@ pub use models::{AdbStatResponse, RebootType};
 pub use server::*;
 pub use server_device::ADBServerDevice;
 pub use transports::*;
+
+pub use rustls_pki_types::ServerName;

@@ -25,11 +25,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
         }
     }
 
-    pub(crate) fn get_transport(&mut self) -> &T {
-        &self.transport
-    }
-
-    pub(crate) fn get_transport_mut(&mut self) -> &mut T {
+    pub(crate) fn get_transport(&mut self) -> &mut T {
         &mut self.transport
     }
 
@@ -221,9 +217,9 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
             0,
             data,
         );
-        self.get_transport_mut().write_message(message)?;
+        self.get_transport().write_message(message)?;
 
-        let response = self.get_transport_mut().read_message()?;
+        let response = self.get_transport().read_message()?;
 
         self.local_id = Some(response.header().arg1());
         self.remote_id = Some(response.header().arg0());

@@ -1,11 +1,11 @@
-use std::io::{Error, ErrorKind, Read, Write};
-use std::net::{Ipv4Addr, SocketAddrV4, TcpStream};
+use std::io::{ErrorKind, Read, Write};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpStream};
 use std::str::FromStr;
 
 use byteorder::{ByteOrder, LittleEndian};
 
+use crate::models::AdbServerCommand;
 use crate::models::{AdbRequestStatus, SyncCommand};
-use crate::{ADBTransport, models::AdbServerCommand};
 use crate::{Result, RustADBError};
 
 const DEFAULT_SERVER_IP: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -14,35 +14,30 @@ const DEFAULT_SERVER_PORT: u16 = 5037;
 /// Server transport running on top on TCP
 #[derive(Debug)]
 pub struct TCPServerTransport {
-    socket_addr: SocketAddrV4,
-    tcp_stream: Option<TcpStream>,
-}
-
-impl Default for TCPServerTransport {
-    fn default() -> Self {
-        Self::new(SocketAddrV4::new(DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT))
-    }
+    socket_addr: SocketAddr,
+    tcp_stream: TcpStream,
 }
 
 impl TCPServerTransport {
     /// Instantiates a new instance of [TCPServerTransport]
-    pub fn new(socket_addr: SocketAddrV4) -> Self {
-        Self {
+    pub fn connect(socket_addr: SocketAddr) -> Result<Self> {
+        let tcp_stream = TcpStream::connect(socket_addr)?;
+        tcp_stream.set_nodelay(true)?;
+        log::trace!("Successfully connected to {}", socket_addr);
+
+        Ok(Self {
             socket_addr,
-            tcp_stream: None,
-        }
+            tcp_stream,
+        })
     }
 
-    /// Instantiate a new instance of [TCPServerTransport] using given address, or default if not specified.
-    pub fn new_or_default(socket_addr: Option<SocketAddrV4>) -> Self {
-        match socket_addr {
-            Some(s) => Self::new(s),
-            None => Self::default(),
-        }
+    /// Instantiates a new instance of [TCPServerTransport] and connecting to the default address and port
+    pub fn connect_default() -> Result<Self> {
+        Self::connect(SocketAddrV4::new(DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT).into())
     }
 
-    /// Get underlying [SocketAddrV4]
-    pub fn get_socketaddr(&self) -> SocketAddrV4 {
+    /// Get underlying [SocketAddr]
+    pub fn get_socketaddr(&self) -> SocketAddr {
         self.socket_addr
     }
 
@@ -62,7 +57,7 @@ impl TCPServerTransport {
                     .map_err(|_| RustADBError::ConversionError)?
             ];
             if length > 0 {
-                self.get_raw_connection()?.read_exact(&mut body)?;
+                self.get_raw_connection().read_exact(&mut body)?;
             }
 
             Ok(body)
@@ -71,13 +66,8 @@ impl TCPServerTransport {
         }
     }
 
-    pub(crate) fn get_raw_connection(&self) -> Result<&TcpStream> {
-        self.tcp_stream
-            .as_ref()
-            .ok_or(RustADBError::IOError(Error::new(
-                ErrorKind::NotConnected,
-                "not connected",
-            )))
+    pub(crate) fn get_raw_connection(&self) -> &TcpStream {
+        &self.tcp_stream
     }
 
     /// Gets the body length from hexadecimal value
@@ -93,9 +83,7 @@ impl TCPServerTransport {
     pub(crate) fn send_sync_request(&mut self, command: SyncCommand) -> Result<()> {
         // First 4 bytes are the name of the command we want to send
         // (e.g. "SEND", "RECV", "STAT", "LIST")
-        Ok(self
-            .get_raw_connection()?
-            .write_all(command.to_string().as_bytes())?)
+        Ok(self.get_raw_connection().write_all(command.to_string().as_bytes())?)
     }
 
     /// Gets the body length from a LittleEndian value
@@ -107,7 +95,7 @@ impl TCPServerTransport {
     /// Read 4 bytes representing body length
     fn read_body_length(&mut self) -> Result<[u8; 4]> {
         let mut length_buffer = [0; 4];
-        self.get_raw_connection()?.read_exact(&mut length_buffer)?;
+        self.get_raw_connection().read_exact(&mut length_buffer)?;
 
         Ok(length_buffer)
     }
@@ -118,8 +106,7 @@ impl TCPServerTransport {
         let adb_command_string = command.to_string();
         let adb_request = format!("{:04x}{}", adb_command_string.len(), adb_command_string);
 
-        self.get_raw_connection()?
-            .write_all(adb_request.as_bytes())?;
+        self.get_raw_connection().write_all(adb_request.as_bytes())?;
 
         self.read_adb_response()
     }
@@ -128,7 +115,7 @@ impl TCPServerTransport {
     pub(crate) fn read_adb_response(&mut self) -> Result<()> {
         // Reads returned status code from ADB server
         let mut request_status = [0; 4];
-        self.get_raw_connection()?.read_exact(&mut request_status)?;
+        self.get_raw_connection().read_exact(&mut request_status)?;
 
         match AdbRequestStatus::from_str(std::str::from_utf8(request_status.as_ref())?)? {
             AdbRequestStatus::Fail => {
@@ -142,7 +129,7 @@ impl TCPServerTransport {
                         .map_err(|_| RustADBError::ConversionError)?
                 ];
                 if length > 0 {
-                    self.get_raw_connection()?.read_exact(&mut body)?;
+                    self.get_raw_connection().read_exact(&mut body)?;
                 }
 
                 Err(RustADBError::ADBRequestFailed(String::from_utf8(body)?))
@@ -150,27 +137,10 @@ impl TCPServerTransport {
             AdbRequestStatus::Okay => Ok(()),
         }
     }
-}
 
-impl ADBTransport for TCPServerTransport {
-    fn disconnect(&mut self) -> Result<()> {
-        if let Some(conn) = &mut self.tcp_stream {
-            conn.shutdown(std::net::Shutdown::Both)?;
-            log::trace!("Disconnected from {}", conn.peer_addr()?);
-        }
-
-        Ok(())
-    }
-
-    fn connect(&mut self) -> Result<()> {
-        if let Some(previous) = &self.tcp_stream {
-            // Ignoring underlying error, we will recreate a new connection
-            let _ = previous.shutdown(std::net::Shutdown::Both);
-        }
-        let tcp_stream = TcpStream::connect(self.socket_addr)?;
-        tcp_stream.set_nodelay(true)?;
-        self.tcp_stream = Some(tcp_stream);
-        log::trace!("Successfully connected to {}", self.socket_addr);
+    pub(crate) fn disconnect(&mut self) -> Result<()> {
+        self.get_raw_connection().shutdown(std::net::Shutdown::Both)?;
+        log::trace!("Disconnected from {}", self.get_raw_connection().peer_addr()?);
 
         Ok(())
     }

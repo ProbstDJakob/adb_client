@@ -24,7 +24,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
         let local_id = self.get_local_id()?;
         let remote_id = self.get_remote_id()?;
 
-        self.get_transport_mut().write_message_with_timeout(
+        self.get_transport().write_message_with_timeout(
             ADBTransportMessage::new(MessageCommand::Okay, local_id, remote_id, &[]),
             std::time::Duration::from_secs(4),
         )?;

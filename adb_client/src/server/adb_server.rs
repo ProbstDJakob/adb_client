@@ -1,9 +1,8 @@
-use crate::ADBTransport;
 use crate::Result;
 use crate::RustADBError;
 use crate::TCPServerTransport;
 use std::collections::HashMap;
-use std::net::SocketAddrV4;
+use std::net::{SocketAddr, SocketAddrV4};
 use std::process::Command;
 
 /// Represents an ADB Server
@@ -12,7 +11,7 @@ pub struct ADBServer {
     /// Internal [TcpStream], lazily initialized
     pub(crate) transport: Option<TCPServerTransport>,
     /// Address to connect to
-    pub(crate) socket_addr: Option<SocketAddrV4>,
+    pub(crate) socket_addr: Option<SocketAddr>,
     /// adb-server start envs
     pub(crate) envs: HashMap<String, String>,
     /// Path to adb binary
@@ -22,7 +21,7 @@ pub struct ADBServer {
 
 impl ADBServer {
     /// Instantiates a new [ADBServer]
-    pub fn new(address: SocketAddrV4) -> Self {
+    pub fn new(address: SocketAddr) -> Self {
         Self {
             transport: None,
             socket_addr: Some(address),
@@ -32,7 +31,7 @@ impl ADBServer {
     }
 
     /// Instantiates a new [ADBServer] with a custom adb path
-    pub fn new_from_path(address: SocketAddrV4, adb_path: Option<String>) -> Self {
+    pub fn new_from_path(address: SocketAddr, adb_path: Option<String>) -> Self {
         Self {
             transport: None,
             socket_addr: Some(address),
@@ -81,22 +80,21 @@ impl ADBServer {
     /// Connect to underlying transport
     pub(crate) fn connect(&mut self) -> Result<&mut TCPServerTransport> {
         let mut is_local_ip = false;
-        let mut transport = if let Some(addr) = &self.socket_addr {
+        let transport = if let Some(addr) = &self.socket_addr {
             let ip = addr.ip();
             if ip.is_loopback() || ip.is_unspecified() {
                 is_local_ip = true;
             }
-            TCPServerTransport::new(*addr)
+            TCPServerTransport::connect(*addr)?
         } else {
             is_local_ip = true;
-            TCPServerTransport::default()
+            TCPServerTransport::connect_default()?
         };
 
         if is_local_ip {
             Self::start(&self.envs, &self.adb_path);
         }
 
-        transport.connect()?;
         self.transport = Some(transport);
 
         self.get_transport()

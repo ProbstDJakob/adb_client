@@ -18,7 +18,7 @@ impl ADBServerDevice {
 
         let version = self
             .transport
-            .get_raw_connection()?
+            .get_raw_connection()
             .read_u32::<LittleEndian>()?;
 
         match version {
@@ -26,7 +26,7 @@ impl ADBServerDevice {
             1 => {
                 let mut buf = [0u8; std::mem::size_of::<FrameBufferInfoV1>()];
 
-                self.transport.get_raw_connection()?.read_exact(&mut buf)?;
+                self.transport.get_raw_connection().read_exact(&mut buf)?;
 
                 let framebuffer_info: FrameBufferInfoV1 = buf.try_into()?;
 
@@ -37,7 +37,7 @@ impl ADBServerDevice {
                         .try_into()
                         .map_err(|_| RustADBError::ConversionError)?
                 ];
-                self.transport.get_raw_connection()?.read_exact(&mut data)?;
+                self.transport.get_raw_connection().read_exact(&mut data)?;
 
                 Ok(ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
                     framebuffer_info.width,
@@ -50,7 +50,7 @@ impl ADBServerDevice {
             2 => {
                 let mut buf = [0u8; std::mem::size_of::<FrameBufferInfoV2>()];
 
-                self.transport.get_raw_connection()?.read_exact(&mut buf)?;
+                self.transport.get_raw_connection().read_exact(&mut buf)?;
 
                 let framebuffer_info: FrameBufferInfoV2 = buf.try_into()?;
 
@@ -61,7 +61,7 @@ impl ADBServerDevice {
                         .try_into()
                         .map_err(|_| RustADBError::ConversionError)?
                 ];
-                self.transport.get_raw_connection()?.read_exact(&mut data)?;
+                self.transport.get_raw_connection().read_exact(&mut data)?;
 
                 Ok(ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
                     framebuffer_info.width,

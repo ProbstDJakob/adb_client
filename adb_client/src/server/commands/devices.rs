@@ -50,7 +50,7 @@ impl ADBServer {
                 Some(_) => Err(RustADBError::DeviceNotFound(
                     "too many devices connected".to_string(),
                 )),
-                None => Ok(ADBServerDevice::new(device.identifier, self.socket_addr)),
+                None => Ok(ADBServerDevice::connect(device.identifier, self.socket_addr)?),
             },
             None => Err(RustADBError::DeviceNotFound(
                 "no device connected".to_string(),
@@ -74,7 +74,7 @@ impl ADBServer {
                 "could not find device {name}"
             )))
         } else {
-            Ok(ADBServerDevice::new(name.to_string(), self.socket_addr))
+            Ok(ADBServerDevice::connect(name.to_string(), self.socket_addr)?)
         }
     }
 
@@ -94,7 +94,7 @@ impl ADBServer {
                         .map_err(|_| RustADBError::ConversionError)?
                 ];
                 self.get_transport()?
-                    .get_raw_connection()?
+                    .get_raw_connection()
                     .read_exact(&mut body)?;
 
                 for device in body.split(|x| x.eq(&b'\n')) {

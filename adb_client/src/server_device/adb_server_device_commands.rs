@@ -27,7 +27,7 @@ impl ADBDeviceExt for ADBServerDevice {
 
         loop {
             let mut buffer = [0; BUFFER_SIZE];
-            match self.transport.get_raw_connection()?.read(&mut buffer) {
+            match self.transport.get_raw_connection().read(&mut buffer) {
                 Ok(size) => {
                     if size == 0 {
                         return Ok(());
@@ -61,7 +61,7 @@ impl ADBDeviceExt for ADBServerDevice {
         self.set_serial_transport()?;
         self.transport.send_adb_request(AdbServerCommand::Shell)?;
 
-        let mut read_stream = self.transport.get_raw_connection()?.try_clone()?;
+        let mut read_stream = self.transport.get_raw_connection().try_clone()?;
 
         let mut write_stream = read_stream.try_clone()?;
 

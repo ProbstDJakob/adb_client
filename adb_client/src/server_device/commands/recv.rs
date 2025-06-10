@@ -86,7 +86,7 @@ impl ADBServerDevice {
         from: S,
         output: &mut dyn Write,
     ) -> Result<()> {
-        let mut raw_connection = self.transport.get_raw_connection()?;
+        let mut raw_connection = self.transport.get_raw_connection();
 
         let from_as_bytes = from.as_ref().as_bytes();
         let mut buffer = Vec::with_capacity(4 + from_as_bytes.len());

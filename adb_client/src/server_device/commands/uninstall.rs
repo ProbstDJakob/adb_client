@@ -11,7 +11,7 @@ impl ADBServerDevice {
             .send_adb_request(AdbServerCommand::Uninstall(package_name.to_string()))?;
 
         let mut data = [0; 1024];
-        let read_amount = self.transport.get_raw_connection()?.read(&mut data)?;
+        let read_amount = self.transport.get_raw_connection().read(&mut data)?;
 
         match &data[0..read_amount] {
             b"Success\n" => {

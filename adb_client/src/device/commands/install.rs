@@ -16,13 +16,14 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
 
         self.open_session(format!("exec:cmd package 'install' -S {}\0", file_size).as_bytes())?;
 
-        let transport = self.get_transport().clone();
+        let local_id = self.get_local_id()?;
+        let remote_id = self.get_remote_id()?;
 
-        let mut writer = MessageWriter::new(transport, self.get_local_id()?, self.get_remote_id()?);
+        let mut writer = MessageWriter::new(self.get_transport(), local_id, remote_id);
 
         std::io::copy(&mut apk_file, &mut writer)?;
 
-        let final_status = self.get_transport_mut().read_message()?;
+        let final_status = self.get_transport().read_message()?;
 
         match final_status.into_payload().as_slice() {
             b"Success\n" => {

@@ -18,12 +18,12 @@ impl ADBServerDevice {
         self.transport
             .send_adb_request(AdbServerCommand::Install(file_size))?;
 
-        let mut raw_connection = self.transport.get_raw_connection()?;
+        let mut raw_connection = self.transport.get_raw_connection();
 
         std::io::copy(&mut apk_file, &mut raw_connection)?;
 
         let mut data = [0; 1024];
-        let read_amount = self.transport.get_raw_connection()?.read(&mut data)?;
+        let read_amount = self.transport.get_raw_connection().read(&mut data)?;
 
         match &data[0..read_amount] {
             b"Success\n" => {

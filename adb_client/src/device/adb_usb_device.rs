@@ -14,7 +14,6 @@ use super::models::MessageCommand;
 use super::{ADBRsaKey, ADBTransportMessage};
 use crate::ADBDeviceExt;
 use crate::ADBMessageTransport;
-use crate::ADBTransport;
 use crate::device::adb_transport_message::{AUTH_RSAPUBLICKEY, AUTH_SIGNATURE, AUTH_TOKEN};
 use crate::{Result, RustADBError, USBTransport};
 
@@ -114,7 +113,7 @@ impl ADBUSBDevice {
         product_id: u16,
         private_key_path: PathBuf,
     ) -> Result<Self> {
-        Self::new_from_transport_inner(USBTransport::new(vendor_id, product_id)?, private_key_path)
+        Self::new_from_transport_inner(USBTransport::connect(vendor_id, product_id)?, private_key_path)
     }
 
     /// Instantiate a new [`ADBUSBDevice`] from a [`USBTransport`] and an optional private key path.
@@ -167,9 +166,7 @@ impl ADBUSBDevice {
     }
 
     /// Send initial connect
-    pub fn connect(&mut self) -> Result<()> {
-        self.get_transport_mut().connect()?;
-
+    fn connect(&mut self) -> Result<()> {
         let message = ADBTransportMessage::new(
             MessageCommand::Cnxn,
             0x01000000,
@@ -233,7 +230,7 @@ impl ADBUSBDevice {
 
     #[inline]
     fn get_transport_mut(&mut self) -> &mut USBTransport {
-        self.inner.get_transport_mut()
+        self.inner.get_transport()
     }
 }
 

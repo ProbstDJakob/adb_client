@@ -3,7 +3,7 @@ use adb_client::ADBEmulatorDevice;
 use crate::models::{EmuCommand, EmulatorCommand};
 
 pub fn handle_emulator_commands(emulator_command: EmulatorCommand) -> anyhow::Result<()> {
-    let mut emulator = ADBEmulatorDevice::new(emulator_command.serial, None)?;
+    let mut emulator = ADBEmulatorDevice::connect(emulator_command.serial, None)?;
 
     match emulator_command.command {
         EmuCommand::Sms {

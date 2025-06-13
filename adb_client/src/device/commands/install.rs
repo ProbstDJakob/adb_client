@@ -7,7 +7,8 @@ use crate::{
 };
 
 impl<T: ADBMessageTransport> ADBMessageDevice<T> {
-    pub(crate) fn install(&mut self, apk_path: &dyn AsRef<Path>) -> Result<()> {
+    pub(crate) fn install(&mut self, apk_path: impl AsRef<Path>) -> Result<()> {
+        let apk_path = apk_path.as_ref();
         let mut apk_file = File::open(apk_path)?;
 
         check_extension_is_apk(apk_path)?;
@@ -29,7 +30,7 @@ impl<T: ADBMessageTransport> ADBMessageDevice<T> {
             b"Success\n" => {
                 log::info!(
                     "APK file {} successfully installed",
-                    apk_path.as_ref().display()
+                    apk_path.display()
                 );
                 Ok(())
             }

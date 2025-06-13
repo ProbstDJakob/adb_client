@@ -7,9 +7,7 @@ mod handlers;
 mod models;
 mod utils;
 
-use adb_client::{
-    ADBDeviceExt, ADBServer, ADBServerDevice, ADBTcpDevice, ADBUSBDevice, MDNSDiscoveryService,
-};
+use adb_client::{ADBDeviceExt, ADBServer, ADBServerDevice, ADBTcpDevice, ADBUSBDevice, AdbStatResponse, Connection, Framebuffer, MDNSDiscoveryService, RebootType};
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use adb_termios::ADBTermios;
@@ -20,9 +18,113 @@ use handlers::{handle_emulator_commands, handle_host_commands, handle_local_comm
 use models::{DeviceCommands, LocalCommand, MainCommand, Opts};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use utils::setup_logger;
+
+enum Device<T: Connection + Send + 'static> {
+    Local(ADBServerDevice),
+    Usb(ADBUSBDevice),
+    Tcp(ADBTcpDevice<T>),
+}
+
+impl<T: Connection + Send + 'static> ADBDeviceExt for Device<T> {
+    fn shell_command(&mut self, command: &[&str], output: impl Write) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.shell_command(command, output),
+            Device::Usb(device) => device.shell_command(command, output),
+            Device::Tcp(device) => device.shell_command(command, output),
+        }
+    }
+
+    fn shell(&mut self, reader: impl Read, writer: impl Write + Send + 'static) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.shell(reader, writer),
+            Device::Usb(device) => device.shell(reader, writer),
+            Device::Tcp(device) => device.shell(reader, writer),
+        }
+    }
+
+    fn stat(&mut self, remote_path: &str) -> adb_client::Result<AdbStatResponse> {
+        match self {
+            Device::Local(device) => device.stat(remote_path),
+            Device::Usb(device) => device.stat(remote_path),
+            Device::Tcp(device) => device.stat(remote_path),
+        }
+    }
+
+    fn pull(&mut self, source: impl AsRef<str>, output: impl Write) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.pull(source, output),
+            Device::Usb(device) => device.pull(source, output),
+            Device::Tcp(device) => device.pull(source, output),
+        }
+    }
+
+    fn push(&mut self, stream: impl Read, path: impl AsRef<str>) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.push(stream, path),
+            Device::Usb(device) => device.push(stream, path),
+            Device::Tcp(device) => device.push(stream, path),
+        }
+    }
+
+    fn reboot(&mut self, reboot_type: RebootType) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.reboot(reboot_type),
+            Device::Usb(device) => device.reboot(reboot_type),
+            Device::Tcp(device) => device.reboot(reboot_type),
+        }
+    }
+
+    fn run_activity(&mut self, package: &str, activity: &str) -> adb_client::Result<Vec<u8>> {
+        match self {
+            Device::Local(device) => device.run_activity(package, activity),
+            Device::Usb(device) => device.run_activity(package, activity),
+            Device::Tcp(device) => device.run_activity(package, activity),
+        }
+    }
+
+    fn install(&mut self, apk_path: impl AsRef<Path>) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.install(apk_path),
+            Device::Usb(device) => device.install(apk_path),
+            Device::Tcp(device) => device.install(apk_path),
+        }
+    }
+
+    fn uninstall(&mut self, package: &str) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.uninstall(package),
+            Device::Usb(device) => device.uninstall(package),
+            Device::Tcp(device) => device.uninstall(package),
+        }
+    }
+
+    fn framebuffer_inner(&mut self) -> adb_client::Result<Framebuffer> {
+        match self {
+            Device::Local(device) => device.framebuffer_inner(),
+            Device::Usb(device) => device.framebuffer_inner(),
+            Device::Tcp(device) => device.framebuffer_inner(),
+        }
+    }
+
+    fn framebuffer(&mut self, path: impl AsRef<Path>) -> adb_client::Result<()> {
+        match self {
+            Device::Local(device) => device.framebuffer(path),
+            Device::Usb(device) => device.framebuffer(path),
+            Device::Tcp(device) => device.framebuffer(path),
+        }
+    }
+
+    fn framebuffer_bytes(&mut self) -> adb_client::Result<Vec<u8>> {
+        match self {
+            Device::Local(device) => device.framebuffer_bytes(),
+            Device::Usb(device) => device.framebuffer_bytes(),
+            Device::Tcp(device) => device.framebuffer_bytes(),
+        }
+    }
+}
 
 fn main() -> Result<()> {
     // This depends on `clap`
@@ -54,7 +156,7 @@ fn main() -> Result<()> {
             };
 
             match server_command.command {
-                LocalCommand::DeviceCommands(device_commands) => (device.boxed(), device_commands),
+                LocalCommand::DeviceCommands(device_commands) => (Device::Local(device), device_commands),
                 LocalCommand::LocalDeviceCommand(local_device_command) => {
                     return handle_local_commands(device, local_device_command);
                 }
@@ -76,11 +178,11 @@ fn main() -> Result<()> {
                     );
                 }
             };
-            (device.boxed(), usb_command.commands)
+            (Device::Usb(device), usb_command.commands)
         }
         MainCommand::Tcp(tcp_command) => {
             let device = ADBTcpDevice::new(tcp_command.address)?;
-            (device.boxed(), tcp_command.commands)
+            (Device::Tcp(device), tcp_command.commands)
         }
         MainCommand::Mdns => {
             let mut service = MDNSDiscoveryService::new()?;

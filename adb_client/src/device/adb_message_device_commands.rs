@@ -6,12 +6,12 @@ use std::{
 
 use super::ADBMessageDevice;
 
-impl<T: ADBMessageTransport> ADBDeviceExt for ADBMessageDevice<T> {
-    fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
+impl<T: ADBMessageTransport + Clone + Send + 'static> ADBDeviceExt for ADBMessageDevice<T> {
+    fn shell_command(&mut self, command: &[&str], output: impl Write) -> Result<()> {
         self.shell_command(command, output)
     }
 
-    fn shell(&mut self, reader: &mut dyn Read, writer: Box<(dyn Write + Send)>) -> Result<()> {
+    fn shell(&mut self, reader: impl Read, writer: impl Write + Send + 'static) -> Result<()> {
         self.shell(reader, writer)
     }
 
@@ -19,11 +19,11 @@ impl<T: ADBMessageTransport> ADBDeviceExt for ADBMessageDevice<T> {
         self.stat(remote_path)
     }
 
-    fn pull(&mut self, source: &dyn AsRef<str>, output: &mut dyn Write) -> Result<()> {
+    fn pull(&mut self, source: impl AsRef<str>, output: impl Write) -> Result<()> {
         self.pull(source, output)
     }
 
-    fn push(&mut self, stream: &mut dyn Read, path: &dyn AsRef<str>) -> Result<()> {
+    fn push(&mut self, stream: impl Read, path: impl AsRef<str>) -> Result<()> {
         self.push(stream, path)
     }
 
@@ -31,7 +31,7 @@ impl<T: ADBMessageTransport> ADBDeviceExt for ADBMessageDevice<T> {
         self.reboot(reboot_type)
     }
 
-    fn install(&mut self, apk_path: &dyn AsRef<Path>) -> Result<()> {
+    fn install(&mut self, apk_path: impl AsRef<Path>) -> Result<()> {
         self.install(apk_path)
     }
 

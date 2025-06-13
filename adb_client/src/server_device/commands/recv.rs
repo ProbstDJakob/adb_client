@@ -69,7 +69,7 @@ impl<R: Read> Read for ADBRecvCommandReader<R> {
 
 impl ADBServerDevice {
     /// Receives path to stream from the device.
-    pub fn pull(&mut self, path: &dyn AsRef<str>, stream: &mut dyn Write) -> Result<()> {
+    pub fn pull(&mut self, path: impl AsRef<str>, stream: impl Write) -> Result<()> {
         self.set_serial_transport()?;
 
         // Set device in SYNC mode
@@ -84,7 +84,7 @@ impl ADBServerDevice {
     fn handle_recv_command<S: AsRef<str>>(
         &mut self,
         from: S,
-        output: &mut dyn Write,
+        output: impl Write,
     ) -> Result<()> {
         let mut raw_connection = self.transport.get_raw_connection();
 

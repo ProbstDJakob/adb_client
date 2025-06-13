@@ -12,7 +12,7 @@ use crate::{
 use super::ADBServerDevice;
 
 impl ADBDeviceExt for ADBServerDevice {
-    fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
+    fn shell_command(&mut self, command: &[&str], mut output: impl Write) -> Result<()> {
         let supported_features = self.host_features()?;
         if !supported_features.contains(&HostFeatures::ShellV2)
             && !supported_features.contains(&HostFeatures::Cmd)
@@ -48,8 +48,8 @@ impl ADBDeviceExt for ADBServerDevice {
 
     fn shell(
         &mut self,
-        mut reader: &mut dyn Read,
-        mut writer: Box<(dyn Write + Send)>,
+        mut reader: impl Read,
+        mut writer: impl Write + Send + 'static,
     ) -> Result<()> {
         let supported_features = self.host_features()?;
         if !supported_features.contains(&HostFeatures::ShellV2)
@@ -96,7 +96,7 @@ impl ADBDeviceExt for ADBServerDevice {
         Ok(())
     }
 
-    fn pull(&mut self, source: &dyn AsRef<str>, mut output: &mut dyn Write) -> Result<()> {
+    fn pull(&mut self, source: impl AsRef<str>, mut output: impl Write) -> Result<()> {
         self.pull(source, &mut output)
     }
 
@@ -104,11 +104,11 @@ impl ADBDeviceExt for ADBServerDevice {
         self.reboot(reboot_type)
     }
 
-    fn push(&mut self, stream: &mut dyn Read, path: &dyn AsRef<str>) -> Result<()> {
+    fn push(&mut self, stream: impl Read, path: impl AsRef<str>) -> Result<()> {
         self.push(stream, path)
     }
 
-    fn install(&mut self, apk_path: &dyn AsRef<Path>) -> Result<()> {
+    fn install(&mut self, apk_path: impl AsRef<Path>) -> Result<()> {
         self.install(apk_path)
     }
 

@@ -16,7 +16,7 @@ mod server_device;
 mod transports;
 mod utils;
 
-pub use adb_device_ext::ADBDeviceExt;
+pub use adb_device_ext::{ADBDeviceExt, Framebuffer};
 pub use device::{ADBTcpDevice, ADBUSBDevice};
 pub use emulator_device::ADBEmulatorDevice;
 pub use error::{Result, RustADBError};

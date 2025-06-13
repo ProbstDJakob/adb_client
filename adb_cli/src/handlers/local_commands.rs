@@ -23,13 +23,12 @@ pub fn handle_local_commands(
         }
         LocalDeviceCommand::List { path } => Ok(device.list(path)?),
         LocalDeviceCommand::Logcat { path } => {
-            let writer: Box<dyn Write> = if let Some(path) = path {
+            if let Some(path) = path {
                 let f = File::create(path)?;
-                Box::new(f)
+                Ok(device.get_logs(f)?)
             } else {
-                Box::new(std::io::stdout())
-            };
-            Ok(device.get_logs(writer)?)
+                Ok(device.get_logs(std::io::stdout())?)
+            }
         }
     }
 }

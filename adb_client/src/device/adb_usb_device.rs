@@ -236,12 +236,12 @@ impl ADBUSBDevice {
 
 impl ADBDeviceExt for ADBUSBDevice {
     #[inline]
-    fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
+    fn shell_command(&mut self, command: &[&str], output: impl Write) -> Result<()> {
         self.inner.shell_command(command, output)
     }
 
     #[inline]
-    fn shell<'a>(&mut self, reader: &mut dyn Read, writer: Box<(dyn Write + Send)>) -> Result<()> {
+    fn shell<'a>(&mut self, reader: impl Read, writer: impl Write + Send + 'static) -> Result<()> {
         self.inner.shell(reader, writer)
     }
 
@@ -251,12 +251,12 @@ impl ADBDeviceExt for ADBUSBDevice {
     }
 
     #[inline]
-    fn pull(&mut self, source: &dyn AsRef<str>, output: &mut dyn Write) -> Result<()> {
+    fn pull(&mut self, source: impl AsRef<str>, output: impl Write) -> Result<()> {
         self.inner.pull(source, output)
     }
 
     #[inline]
-    fn push(&mut self, stream: &mut dyn Read, path: &dyn AsRef<str>) -> Result<()> {
+    fn push(&mut self, stream: impl Read, path: impl AsRef<str>) -> Result<()> {
         self.inner.push(stream, path)
     }
 
@@ -266,7 +266,7 @@ impl ADBDeviceExt for ADBUSBDevice {
     }
 
     #[inline]
-    fn install(&mut self, apk_path: &dyn AsRef<Path>) -> Result<()> {
+    fn install(&mut self, apk_path: impl AsRef<Path>) -> Result<()> {
         self.inner.install(apk_path)
     }
 

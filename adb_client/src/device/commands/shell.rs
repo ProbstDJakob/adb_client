@@ -7,9 +7,9 @@ use crate::{
     device::{ADBMessageDevice, ADBTransportMessage, MessageCommand},
 };
 
-impl<T: ADBMessageTransport + Send + Clone + 'static> ADBMessageDevice<T> {
+impl<T: ADBMessageTransport> ADBMessageDevice<T> {
     /// Runs 'command' in a shell on the device, and write its output and error streams into output.
-    pub(crate) fn shell_command(&mut self, command: &[&str], output: &mut dyn Write) -> Result<()> {
+    pub(crate) fn shell_command(&mut self, command: &[&str], mut output: impl Write) -> Result<()> {
         let response = self.open_session(format!("shell:{}\0", command.join(" "),).as_bytes())?;
 
         if response.header().command() != MessageCommand::Okay {
@@ -35,9 +35,9 @@ impl<T: ADBMessageTransport + Send + Clone + 'static> ADBMessageDevice<T> {
     /// Input data is read from [reader] and write to [writer].
     pub(crate) fn shell(
         &mut self,
-        mut reader: &mut dyn Read,
-        mut writer: Box<(dyn Write + Send)>,
-    ) -> Result<()> {
+        mut reader: impl Read,
+        mut writer: impl Write + Send + 'static,
+    ) -> Result<()> where T: Clone + Send + 'static{
         self.open_session(b"shell:\0")?;
 
         let mut transport = self.get_transport().clone();
